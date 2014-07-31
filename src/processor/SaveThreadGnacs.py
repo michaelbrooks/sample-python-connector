@@ -1,8 +1,9 @@
 #!/usr/bin/env python
+import SaveThread
+
 __author__ = 'Jeff Kolb'
 
-from SaveThread import SaveThread
-from twacscsv import TwacsCSV
+from acscsv import acscsv
 import gzip
 import json
 
@@ -21,12 +22,13 @@ class SaveThreadGnacs(SaveThread):
     def write(self, file_name):
         try:
             # set up Gnacs object
-            gnacs = TwacsCSV(self.delim, self.geo, self.user, self.rules, self.urls, self.lang, self.influence, self.struct)
+            gnacs = acscsv(self.delim, self.geo, self.user, self.rules, self.urls, self.lang, self.influence, self.struct)
             
             # write gnacs-ified output to file
             fp = gzip.open(file_name, "a")
             buffer_formated = ''
-            for act in self.string_buffer.split("\n"):
+            while True:
+                act = self.next_message()
                 if act.strip() is None or act.strip() == '':
                     continue
                 act_json = json.loads(act)

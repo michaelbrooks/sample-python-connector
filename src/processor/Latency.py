@@ -1,11 +1,10 @@
-#!/usr/bin/env python
 __author__ = 'scott hendrickson'
 
 from threading import RLock
+import BaseProcessor
 import threading
 import sys
 import json
-import time
 import datetime
 
 wrt_lock = RLock()
@@ -14,7 +13,7 @@ wrt_lock = RLock()
 tzOffset = datetime.timedelta(seconds=3600*7)
 tzOffset = datetime.timedelta(seconds=0)
 
-class Latency(threading.Thread):
+class Latency(BaseProcessor):
     def __init__(self, _buffer, _feedname, _savepath, _rootLogger, _endTs, _spanTs, **kwargs):
         threading.Thread.__init__(self)
         with wrt_lock:
@@ -30,7 +29,6 @@ class Latency(threading.Thread):
                 actJson = json.loads(act.strip())
                 now = datetime.datetime.now() + tzOffset
                 if "postedTime" in actJson:
-                    # for twitter, postedTime is at root
                     pt = actJson["postedTime"]
                     try:
                         lat = now - datetime.datetime.strptime(pt, "%Y-%m-%dT%H:%M:%S.000Z")
@@ -39,10 +37,8 @@ class Latency(threading.Thread):
                 elif "created_at"in actJson:
                     # for wp, created_at is at root
                     pt = actJson["created_at"]
-                    # example date: Thu Dec 15 20:56:00 +0000 2011
                     lat = now - datetime.datetime.strptime(pt, "%a %b %d %H:%M:%S +0000 %Y")
                 elif "object" in actJson:
-                    # for stocktwits
                     if "postedTime" in actJson["object"]:
                         pt = actJson["object"]["postedTime"]
                         lat = now - datetime.datetime.strptime(pt, "%Y-%m-%dT%H:%M:%SZ")

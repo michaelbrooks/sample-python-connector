@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 __author__ = 'scott hendrickson'
 
+import BaseProcessor
 from threading import RLock
 import threading
 import time
@@ -9,11 +10,10 @@ import os
 
 write_lock = RLock()
 
-class SaveThread(threading.Thread):
-    def __init__(self, _buffer, _feedname, _savepath, _rootLogger, _startTs, _spanTs, **kwargs):
+class SaveThread(BaseProcessor):
+    def __init__(self, _feedname, _savepath, _rootLogger, _startTs, _spanTs, **kwargs):
         self.logger =  _rootLogger
         self.savepath = _savepath
-        self.string_buffer = _buffer
         self.feedName = _feedname
         self.timeEnd = time.gmtime(_startTs + _spanTs)
         self.timeSpan = _spanTs
@@ -43,17 +43,19 @@ class SaveThread(threading.Thread):
             name += "_%02d%02d"%(self.timeStart.tm_hour, self.timeStart.tm_min)
             name += ".gz"
             file_name = file_path + "/" + name
-            with write_lock:
-                self.write(file_name)
+            while True:
+                chunk = self.next_message()
+                if None != chunk:
+                    with write_lock:
+                        self.thread_pool.add_task(self.write, chunk)
         except Exception, e:
             self.logger.error("saveAs failed, exiting thread (%s). Exiting."%e)
             raise e
     
-    def write(self, file_name):
+    def write(self, file_name, string):
         try:
-            # simply write to file
             fp = gzip.open(file_name, "a")
-            fp.write(self.string_buffer)
+            fp.write(string)
             fp.close()
             self.logger.info("saved file %s"%file_name)
         except Exception, e:

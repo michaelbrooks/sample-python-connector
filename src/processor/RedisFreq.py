@@ -3,7 +3,6 @@ __author__ = 'scott hendrickson'
 
 import sys
 import redis
-import re
 import datetime
 
 limit = 150

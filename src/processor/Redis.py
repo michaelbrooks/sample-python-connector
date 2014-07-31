@@ -1,8 +1,9 @@
 #!/usr/bin/env python
+import SaveThread
+
 __author__ = 'scott hendrickson'
 
 import sys
-from SaveThread import SaveThread
 import json
 import redis
 import re
@@ -27,7 +28,7 @@ class Redis(SaveThread):
     def run(self):
         self.logger.debug("CountRules started")
         rs = redis.Redis("localhost")
-        for act in self.string_buffer.split("\n"):
+        for act in self.queue.split("\n"):
             self.logger.debug(str(act))
             if act.strip() is None or act.strip() == '':
                 continue
@@ -54,3 +55,4 @@ class Redis(SaveThread):
                         rs.expire(tok, TIME_TO_LIVE)
                         rs.incr("TotalTokensCount")
         sys.exit(0)
+

@@ -28,7 +28,32 @@ class Metrics(SaveThread):
         self.sql_user_name = kwargs["sql_user_name"]
         self.sql_password = kwargs["sql_password"]
         self.sql_db = kwargs["sql_db"]
-        SaveThread.__init__(self, _buffer, _feedname, _savepath, _rootLogger, _startTs, _spanTs, **kwargs) 
+        SaveThread.__init__(self, _buffer, _feedname, _savepath, _rootLogger, _startTs, _spanTs, **kwargs)
+
+    def db_write(self, count_list, db, lang_list, verb_list):
+        try:
+            c = db.cursor()
+            sql_count = """INSERT INTO counts (datetime, count) VALUES (%s,%s)
+                           ON DUPLICATE KEY UPDATE count=count + %s;"""
+            c.executemany(sql_count, count_list)
+            sql_verb = """INSERT INTO verb (datetime, verb, count) VALUES (%s,%s,%s)
+                           ON DUPLICATE KEY UPDATE count=count + %s;"""
+            c.executemany(sql_verb, verb_list)
+            sql_lang = """INSERT INTO language (datetime, language, count) VALUES (%s,%s,%s)
+                           ON DUPLICATE KEY UPDATE count=count + %s;"""
+            c.executemany(sql_lang, lang_list)
+            db.commit()
+        except Exception, e:
+            print >> sys.stderr, "A MySQL insert error occured (%s)" % str(e)
+            db.rollback()
+
+    def db_client(self):
+        return MySQLdb.connect(
+            user=self.sql_user_name,
+            passwd=self.sql_password,
+            host=self.sql_instance,
+            db=self.sql_db
+        )
 
     def run(self):
         self.logger.debug("Metrics started")
@@ -83,26 +108,6 @@ class Metrics(SaveThread):
         self.logger.info("Preparing to insert (counts %d, languages %d, verbs %d) records to db %s."%
                 (len(count_list), len(lang_list), len(verb_list), self.sql_db))
 
-        # connect to the db
-        db=MySQLdb.connect(
-                user=self.sql_user_name, 
-                passwd=self.sql_password,
-                host=self.sql_instance,
-                db=self.sql_db
-                )
-        try:
-            c = db.cursor()
-            sql_count = """INSERT INTO counts (datetime, count) VALUES (%s,%s) 
-                           ON DUPLICATE KEY UPDATE count=count + %s;"""
-            c.executemany(sql_count, count_list)
-            sql_verb = """INSERT INTO verb (datetime, verb, count) VALUES (%s,%s,%s)
-                           ON DUPLICATE KEY UPDATE count=count + %s;"""
-            c.executemany(sql_verb, verb_list)
-            sql_lang = """INSERT INTO language (datetime, language, count) VALUES (%s,%s,%s) 
-                           ON DUPLICATE KEY UPDATE count=count + %s;"""
-            c.executemany(sql_lang, lang_list)
-            db.commit()
-        except Exception, e:
-            print >>sys.stderr,"A MySQL insert error occured (%s)"%str(e)
-            db.rollback()
+        db = self.db_client()
+        self.thread_pool.add_tasks(self.db_write, count_list, db, lang_list, verb_list)
         sys.exit(0)

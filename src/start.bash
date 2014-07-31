@@ -7,4 +7,6 @@ pub=twitter
 ##
 export PYTHONPATH=${PYTHONPATH}:~/Gnip-Stream-Collector-Metrics/src:~/Gnacs/acscsv
 
-nohup ~/Gnip-Stream-Collector-Metrics/src/GnipStreamCollectorMetrics.py --name=$pub &
+nohup ./start.py --name=$pub &
+
+tail -f ./nohup.out
