@@ -1,1 +1,4 @@
 gnacs
+redis
+MySQL-python
+spec
