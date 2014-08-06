@@ -1,5 +1,6 @@
 from threading import Thread
 
+
 class Worker(Thread):
     """Thread executing tasks from a given tasks queue"""
     def __init__(self, tasks):

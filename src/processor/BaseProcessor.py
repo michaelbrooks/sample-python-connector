@@ -1,14 +1,20 @@
-__author__ =  "Nick Isaacs"
+__author__ = "Nick Isaacs"
 
-from src.utils import *
+DEFAULT_THREADS_POOL_SIZE = 8
 
-class BaseProcessor():
-    def __init__(self, queue, poolSize, *args):
-        self.queue = queue
-        self.thread_pool = ThreadPool()
 
-    def process(self, message):
-        raise "Cannot run base processor"
+def next_message(self):
+    self.queue.get()
 
-    def next_message(self):
-        self.queue.get()
+
+def stop(self):
+    self.stopped().set()
+    self.thread_pool.wait()
+
+
+def stopped(self):
+    return self._stopped
+
+
+def is_stopped(self):
+    self.stopped().is_set()

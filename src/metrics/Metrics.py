@@ -56,7 +56,7 @@ class Metrics(SaveThread):
         )
 
     def run(self):
-        self.logger.debug("Metrics started")
+        self.logr.debug("Metrics started")
         data = {}
         for act in self.string_buffer.split("\n"):
             if act.strip() is None or act.strip() == '':
@@ -64,7 +64,7 @@ class Metrics(SaveThread):
             try:
                 activity = json.loads(act)
             except ValueError, e:
-                self.logger.error("Invalid JSON record (%s)"%e)
+                self.logr.error("Invalid JSON record (%s)"%e)
                 continue
             posted_time = datetime.datetime.utcnow()
             if "postedTime" in activity:
@@ -105,7 +105,7 @@ class Metrics(SaveThread):
                 dates = [ t for i in range(len(lang_count_list))]
                 counts = [ i[1] for i in lang_count_list]
                 lang_list.extend(zip(dates, map(i0, lang_count_list), map(i1, lang_count_list), counts))
-        self.logger.info("Preparing to insert (counts %d, languages %d, verbs %d) records to db %s."%
+        self.logr.info("Preparing to insert (counts %d, languages %d, verbs %d) records to db %s."%
                 (len(count_list), len(lang_list), len(verb_list), self.sql_db))
 
         db = self.db_client()

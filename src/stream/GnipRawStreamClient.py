@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__author__ = 'scott hendrickson'
+__author__ = 'scott hendrickson, nick isaacs'
 import time
 import urllib2
 import httplib
@@ -8,7 +8,10 @@ import base64
 import zlib
 import socket
 import logging
-from threading import Thread
+import os
+from multiprocessing import Event, Process, Manager
+from ctypes import c_char_p
+import threading
 
 MAX_QUEUE_SIZE = 5000
 CHUNK_SIZE = 2 ** 17  # decrease for v. low volume streams, > max record size
@@ -39,9 +42,16 @@ class GnipRawStreamClient(object):
                         'Authorization': 'Basic %s' % base64.encodestring(
                             '%s:%s' % (_userName, _password))
         }
+        self._stop = Event()
+        self.manager = Manager()
+        self.string_buffer = self.manager.Value(c_char_p, "")
+        delay_reset = time.time()
+        delay = DELAY_MIN
+        self.run_process = Process(target=self._run, args=(delay, delay_reset))
+        self.time_roll_start = time.time()
 
     def _run(self, delay, delay_reset):
-        while True:
+        while not self.stopped():
             try:
                 self.get_stream()
                 self.logr.error("Forced disconnect")
@@ -70,51 +80,51 @@ class GnipRawStreamClient(object):
             time.sleep(delay)
 
     def run(self):
-        self.time_roll_start = time.time()
-        delay_reset = time.time()
-        delay = DELAY_MIN
-        Thread(target=self._run, args=(delay, delay_reset)).start()
+        self.run_process.start()
 
+    def stop(self):
+        lock = threading.RLock()
+        lock.acquire()
+        with lock:
+            self._stop.set()
+        self.run_process.join()
 
     def get_stream(self):
         self.logr.info("Connecting")
         req = urllib2.Request(self.streamURL, headers=self.headers)
         response = urllib2.urlopen(req, timeout=(1 + GNIP_KEEP_ALIVE))
-
         # sometimes there is a delay closing the connection, can go directly to the socket to control this
         realsock = response.fp._sock.fp._sock
         try:
             decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
-            self.string_buffer = ''
+            self.buffer_string("")
             roll_size = 0
-            while True:
+            while not self.stopped():
                 if self.compressed:
                     chunk = decompressor.decompress(response.read(CHUNK_SIZE))
                 else:
                     chunk = response.read(CHUNK_SIZE)
-                # if chunk is zero length, no longer connected to gnip
                 if chunk == '':
                     return
-                self.string_buffer += chunk
+                self.buffer_string(chunk)
                 test_time = time.time()
-                test_roll_size = roll_size + len(self.string_buffer)
+                test_roll_size = roll_size + len(self.get_string_buffer())
                 if self.trigger_process(test_time, test_roll_size):
                     if test_roll_size == 0:
                         self.logr.info("No data collected this period (testTime=%s)" % test_time)
-                    # occasionally new lines are missing
-                    self.string_buffer.replace("}{", "}%s{" % NEW_LINE)
-                    # only splits on new lines
-                    [records, self.string_buffer] = self.string_buffer.rsplit(NEW_LINE, 1)
+                    self.get_string_buffer().replace("}{", "}%s{" % NEW_LINE)
+                    [records, tmp_buffer] = self.get_string_buffer().rsplit(NEW_LINE, 1)
+                    self.set_string_buffer(tmp_buffer)
                     timeSpan = test_time - self.time_roll_start
-                    self.logr.debug("recsize=%d, %s, %s, ts=%d, dur=%d" %
-                                    (len(records), self.streamName, self.filePath,
-                                     test_time, timeSpan))
+                    # self.logr.debug("recsize=%d, %s, %s, ts=%d, dur=%d" %
+                    #                 (len(records), self.streamName, self.filePath,
+                    #                  test_time, timeSpan))
                     if self.roll_forward(test_time, test_roll_size):
                         self.time_roll_start = test_time
                         roll_size = 0
                     else:
                         roll_size += len(records)
-        except Exception, e:
+        except None, e:
             self.logr.error("Buffer processing error (%s) - restarting connection" % e)
             realsock.close()
             response.close()
@@ -123,23 +133,43 @@ class GnipRawStreamClient(object):
     def roll_forward(self, ttime, tsize):
         # these trigger both processing and roll forward
         if ttime - self.time_roll_start >= self.rollDuration:
-            self.logr.debug("Roll: duration (%d>=%d)" %
-                            (ttime - self.time_roll_start, self.rollDuration))
+            # self.logr.debug("Roll: duration (%d>=%d)" %
+            #                 (ttime - self.time_roll_start, self.rollDuration))
             return True
         if tsize >= MAX_ROLL_SIZE:
-            self.logr.debug("Roll: size (%d>=%d)" %
-                            (tsize, MAX_ROLL_SIZE))
+            # self.logr.debug("Roll: size (%d>=%d)" %
+            #                 (tsize, MAX_ROLL_SIZE))
             return True
         return False
 
     def trigger_process(self, ttime, tsize):
-        if NEW_LINE not in self.string_buffer:
+        if NEW_LINE not in self.get_string_buffer():
             return False
-        if len(self.string_buffer) > MAX_BUF_SIZE:
-            self.logr.debug("Trigger: buffer size (%d>%d)" %
-                            (len(self.string_buffer), MAX_BUF_SIZE))
+        if len(self.get_string_buffer()) > MAX_BUF_SIZE:
+            # self.logr.debug("Trigger: buffer size (%d>%d)" %
+            #                 (len(self.string_buffer), MAX_BUF_SIZE))
             return True
         return self.roll_forward(ttime, tsize)
 
-    def string_buffer(self):
-        return self.string_buffer
+    def set_string_buffer(self, str):
+        self.string_buffer.value = str
+
+    def get_string_buffer(self):
+        return self.string_buffer.value
+
+    def buffer_string(self, str):
+        self.string_buffer.value = self.get_string_buffer() + str
+
+    def stopped(self):
+        lock = threading.RLock()
+        lock.acquire()
+        with lock:
+            status = self._stop.is_set()
+            return status
+
+    def info(self, title):
+        print(title)
+        print('module name:', __name__)
+        if hasattr(os, 'getppid'):  # only available on Unix
+            print('parent process:', os.getppid())
+        print('process id:', os.getpid())
