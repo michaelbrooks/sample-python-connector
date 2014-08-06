@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 __author__ = 'scott hendrickson'
 
-from threading import Event
-from threading import RLock
-from threading import Thread
+import multiprocessing
 import time
 import gzip
 import os
 import logging
-import threadpool
 
-write_lock = RLock()
+write_lock = multiprocessing.RLock()
 
 
-class SaveThread(Thread):
+class SaveThread(object):
     def __init__(self, _upstream, _pool_size, _feedname, _savepath):
         self.queue = _upstream
         self.pool_size = _pool_size
@@ -21,9 +18,13 @@ class SaveThread(Thread):
         self.savepath = _savepath
         self.feedName = _feedname
         self.timeStart = time.gmtime(time.time())
-        self._stopped = Event()
+        self._stopped = multiprocessing.Event()
+        self.run_process = multiprocessing.Process(self._run)
 
     def run(self):
+        self.run_process.start()
+
+    def _run(self):
         try:
             self.logr.debug("started")
             file_path = "/".join([
@@ -50,9 +51,7 @@ class SaveThread(Thread):
                 chunk = self.next_message()
                 if None != chunk:
                     with write_lock:
-                        request = threadpool.makeRequests(self.write, file_name, chunk)
-                        self.thread_pool.putRequest(request)
-                        # self.thread_pool.add_task(self.write, file_name, chunk)
+                        self.write(file_name, chunk)
         except Exception, e:
             self.logr.error("saveAs failed, exiting thread (%s). Exiting." % e)
             raise e
@@ -72,7 +71,6 @@ class SaveThread(Thread):
 
     def stop(self):
         self.stopped().set()
-        self.thread_pool.wait()
 
     def stopped(self):
         return self._stopped
