@@ -4,7 +4,6 @@ __author__ = "Nick Isaacs"
 
 import json
 import logging
-import threading
 import multiprocessing
 from src.stream.GnipRawStreamClient import GnipRawStreamClient
 
@@ -16,13 +15,19 @@ class GnipJsonStreamClient(object):
                                                          _filePath, _rollDuration, compressed)
         self.producer_queue = multiprocessing.Queue()
         self.logr = logging.getLogger("GnipJsonStreamClient")
-        self._stop = threading.Event()
-        self.run_thread = threading.Thread(target=self.parse_string_buffer)
+        self._stop = multiprocessing.Event()
+        self.run_thread = multiprocessing.Process(target=self.parse_string_buffer)
 
     def run(self):
         self.gnip_raw_sream_client.run()
         self.run_thread.start()
         print("Started application")
+        # Block for stuff to appear
+        while 0 >= self.producer_queue.qsize():
+            pass
+
+    def running(self):
+        return (not self.stopped()) and 0 != self.producer_queue.qsize() or self.gnip_raw_sream_client.running()
 
     def stop(self):
         self._stop.set()
@@ -30,12 +35,13 @@ class GnipJsonStreamClient(object):
         print("Cleanly stopped raw streaming client")
 
     def stopped(self):
-        return self._stop.isSet()
+        return self._stop.is_set()
 
     def queue(self):
         return self.producer_queue
 
     def parse_string_buffer(self):
+        print("Starting to parse buffer")
         while not self.stopped():
             if not isinstance(self.gnip_raw_sream_client.get_string_buffer(), basestring):
                 continue

@@ -9,6 +9,7 @@ import zlib
 import socket
 import logging
 import os
+import traceback
 from multiprocessing import Event, Process, Manager
 from ctypes import c_char_p
 import threading
@@ -44,11 +45,15 @@ class GnipRawStreamClient(object):
         }
         self._stop = Event()
         self.manager = Manager()
-        self.string_buffer = self.manager.Value(c_char_p, "")
         delay_reset = time.time()
         delay = DELAY_MIN
         self.run_process = Process(target=self._run, args=(delay, delay_reset))
         self.time_roll_start = time.time()
+        self.string_buffer = None
+        self.setup_string_buffer()
+
+    def running(self):
+        return not self.stopped() and not ("" == self.get_string_buffer()) and not self.run_process.is_alive()
 
     def _run(self, delay, delay_reset):
         while not self.stopped():
@@ -146,19 +151,22 @@ class GnipRawStreamClient(object):
         if NEW_LINE not in self.get_string_buffer():
             return False
         if len(self.get_string_buffer()) > MAX_BUF_SIZE:
-            # self.logr.debug("Trigger: buffer size (%d>%d)" %
-            #                 (len(self.string_buffer), MAX_BUF_SIZE))
             return True
         return self.roll_forward(ttime, tsize)
 
-    def set_string_buffer(self, str):
-        self.string_buffer.value = str
+    def set_string_buffer(self, string):
+        self.string_buffer.value = string
 
     def get_string_buffer(self):
-        return self.string_buffer.value
+        while True:
+            try:
+                return self.string_buffer.value
+            except IOError, e:
+                print("IOError trying to get string buffer: ", e.traceback)
+                traceback.print_last(limit=20)
 
-    def buffer_string(self, str):
-        self.string_buffer.value = self.get_string_buffer() + str
+    def buffer_string(self, string):
+        self.string_buffer.value = self.get_string_buffer() + string
 
     def stopped(self):
         lock = threading.RLock()
@@ -172,4 +180,15 @@ class GnipRawStreamClient(object):
         print('module name:', __name__)
         if hasattr(os, 'getppid'):  # only available on Unix
             print('parent process:', os.getppid())
-        print('process id:', os.getpid())
+        print('process id:',  os.getpid())
+
+    def setup_string_buffer(self):
+        while not self.string_buffer:
+            try:
+                self.string_buffer = self.manager.Value(c_char_p, "")
+                assert "" == str(self.get_string_buffer())
+            except IOError, e:
+                error = "IOError creating string buffer: " + e.message
+                self.logr.error(error)
+                print(error)
+
