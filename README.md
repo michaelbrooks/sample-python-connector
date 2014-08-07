@@ -1,268 +1,37 @@
-GNIP STREAM - COLLECTOR METRICS
+#Gnip Python Sample Connector
+This is a sample app which connects to the Gnip set of streaming APIs in Python. The application is broken down into three basic elements:
+ - A ```GnipRawStreamClient``` which connects to the HTTP endpoint and buffers the streaming JSON
+ - A ```GnipJSONStreamClient``` which wraps the ```GnipRawStreamCLient``` and parses the JSON payloads, placing them onto a ```multiprocessing.Queue()```
+ - A set of processors which accept a ```multiprocessing.Queue()``` and take action accordingly
 
-Command line tool for:
+Some key notes about this design are as follows:
+ 1. Modularity: We try to do our best to keep clean separation between different logical pieces of the app.
+ 2. Multi-Proccessing: We have separate threads of execution (we are using processes as Python has a global interpreter lock)to handle the different steps of the process. For example, we do not write out to a database on the same therad that we are consuming the data. Rather, we use Queues to communicate between the different parts of the application.
+ 3. Logging: We log as much relevant data as possible. If this were a production application, we would want to be able to trace what happened when without digging into live code.
+ 4. Reconnection logic: Sometimes the stream will fail on us. We handle this gracefully by backing off the stream exponentially, and attempting to reconnect until we are successful.
 
- * Saving JSON stream of activities to disk in date-ordered directory tree
- * See real-time rule production
- * See real-time token frequency (uses redis store)
- * Measure social media latency (time from creation time stamp to delivery)
+##Requirements
 
-Requires Python urllib2 and, for token frequency, Redis and the python
-redis module.
+ - Linux (Tested: Ubuntu 14.02. Multiprocessing libraries do not work on OSX)
+ - Python (Tested: 2.7)
+ - Access to PowerTrack or Decahose stream
+ - pip (to install dependancies)
+ - mysql-server-5.5 (optional)
+ - [Vagrant](https://www.vagrantup.com/) (optional, but we have included a Vagrantfile for convinience)
 
-The tool is driven from a config file named gnip.cfg. To get started, 
-enter your Gnip login credentials and stream URL and choose the tool 
-function you desire.
+##Running
+ To run with Linux:
+ ```bash
+ git clone git@github.com:twitterdev/Gnip-Stream-Collector-Metrics.git sample_python_connector
+ cd sample_python_connector
+ sh script/bootstrap.sh
+ sh ./start.sh
+ ```
 
-Usage:
-
-All examples run with Gnip Powertrack rule set:
-
-tebow
-broncos
-football
-win
-gnip
-beer -root
-
-Example 1: Rule production rates
---------------------------------
-In gnip.cfg, set
-
-...
-# print out rule production rates
-processtype=rules
-...
-
-Scott-Hendricksons-MacBook-Pro ~/IdeaProjects/RuleProduction/src> ./GnipStreamCollectorMetrics.py 
-(2012-01-06 13:07:53.989700) sample 154 tweets (20 seconds)
-win: .......... (  91 tweets matched)   4.4592 tweets/second
-football: ..... (  35 tweets matched)   1.7151 tweets/second
-beer -root: ... (  24 tweets matched)   1.1761 tweets/second
-tebow: ........ (   5 tweets matched)   0.2450 tweets/second
-(2012-01-06 13:08:14.484888) sample 158 tweets (20 seconds)
-win: .......... (  95 tweets matched)   4.6359 tweets/second
-football: ..... (  28 tweets matched)   1.3664 tweets/second
-beer -root: ... (  24 tweets matched)   1.1712 tweets/second
-tebow: ........ (   9 tweets matched)   0.4392 tweets/second
-broncos: ...... (   5 tweets matched)   0.2440 tweets/second
-(2012-01-06 13:08:34.731178) sample 162 tweets (20 seconds)
-win: .......... ( 110 tweets matched)   5.4359 tweets/second
-football: ..... (  28 tweets matched)   1.3837 tweets/second
-beer -root: ... (  21 tweets matched)   1.0378 tweets/second
-broncos: ...... (   2 tweets matched)   0.0988 tweets/second
-tebow: ........ (   2 tweets matched)   0.0988 tweets/second
-(2012-01-06 13:08:55.285500) sample 189 tweets (20 seconds)
-win: .......... ( 110 tweets matched)   5.3634 tweets/second
-beer -root: ... (  39 tweets matched)   1.9016 tweets/second
-football: ..... (  35 tweets matched)   1.7065 tweets/second
-tebow: ........ (   4 tweets matched)   0.1950 tweets/second
-broncos: ...... (   1 tweets matched)   0.0488 tweets/second
-(2012-01-06 13:09:15.276119) sample 176 tweets (20 seconds)
-win: .......... ( 111 tweets matched)   5.5474 tweets/second
-football: ..... (  35 tweets matched)   1.7492 tweets/second
-beer -root: ... (  18 tweets matched)   0.8996 tweets/second
-tebow: ........ (   8 tweets matched)   0.3998 tweets/second
-broncos: ...... (   5 tweets matched)   0.2499 tweets/second
-...
-
-
-The parameter "rollduration" sets the time between reports.  You may need to adjust this based
-on the productivity of your rule set. 
-
-
-Example 2: English token frequency (Requires redis)
----------------------------------------------------
-
-Start your local redis server and perform a "flushall" to clear the database.
-
-In gnip.cfg, set
-
-...
-# store stream contents in redis
-processtype=redis
-...
-
-Start the client:
-
-Scott-Hendricksons-MacBook-Pro ~/IdeaProjects/RuleProduction/src> ./GnipStreamCollectorMetrics.py 
-(no output expected)
-...
-
-
-To see token frequencies, let the client run for a few minutes to collect data.  Then run the
-RedisFreq.py tool to see what is stored in redis.  The token counts accumulated in the
-redis store decay over 90 seconds so the store will reach steady state size after a few minutes.
-
-You can monitor redis with a variety of tools. For example, with 
-the redis-cli tool is include with redis.  Execute the command "dbsize"
-to see the number of keys in the store.  Like this: 
-
-redis 127.0.0.1:6379> dbsize
-(integer) 4097
-redis 127.0.0.1:6379> 
-
-This shows that there are 4097 redis keys in the store.
-
-Running the RedisFreq.py script after a few minutes gives the 100 more frequent
-tokens from the redis store.  A sample of the counts and fractions
-first few tokens is shown below.  This data shows 15627 tokens counted with
-"win" being the most common and comprising about 6% of the tokens counted.
-
-(Edit the stopwords list in the script "Redis.py" if you want to
-include/exclude different tokens.)
-
-
-Scott-Hendricksons-MacBook-Pro ~/IdeaProjects/RuleProduction/src> ./RedisFreq.py 
-TotalTokensCount ......... 15627 (1.00000)
-TotalRuleMatchCount ...... 1613 (0.10322)
-win ...................... 1006 (0.06438)
-football ................. 286 (0.01830)
-beer ..................... 237 (0.01517)
-follow ................... 124 (0.00793)
-chance ................... 109 (0.00698)
-giveaway ................. 99 (0.00634)
-free ..................... 99 (0.00634)
-please ................... 73 (0.00467)
-enter .................... 69 (0.00442)
-new ...................... 66 (0.00422)
-game ..................... 64 (0.00410)
-out ...................... 55 (0.00352)
-play ..................... 54 (0.00346)
-good ..................... 50 (0.00320)
-tebow .................... 47 (0.00301)
-team ..................... 46 (0.00294)
-today .................... 45 (0.00288)
-tonight .................. 44 (0.00282)
-one ...................... 44 (0.00282)
-2012 ..................... 43 (0.00275)
-last ..................... 41 (0.00262)
-via ...................... 40 (0.00256)
-want ..................... 40 (0.00256)
-love ..................... 39 (0.00250)
-lol ...................... 39 (0.00250)
-time ..................... 39 (0.00250)
-day ...................... 38 (0.00243)
-thanks ................... 38 (0.00243)
-over ..................... 38 (0.00243)
-see ...................... 37 (0.00237)
-...
-
-
-The redis store also contains rule match counts.  Rules are stored in redis as strings
-surrounded by "[...]". To see rule counts with redis-cli:
-
-redis 127.0.0.1:6379> get "[tebow]"
-"127"
-redis 127.0.0.1:6379> get "[win]"
-"2240"
-redis 127.0.0.1:6379> get "[football]"
-"675"
-redis 127.0.0.1:6379> 
-...
-
-
-Example 3: Latency measurements
---------------------------------
-Latency estimates in this case include the python processes (and inherent variability) but
-will give some idea of an application can accomplish.  It should be fairly straight forward
-to build an application that beats these measurements.
-
-The latency data is output to standard out the measurement for each activity on a separate
-line.  
-
-Be sure to set the rollduration to 1 sec. The rollduration is
-included in the measured latency.
-
-In gnip.cfg, set
-
-...
-rollduration=1
-...
-
-
-Scott-Hendricksons-MacBook-Pro ~/IdeaProjects/RuleProduction/src> ./GnipStreamCollectorMetrics.py 
-2012-01-06 20:25:52.841085, 10.841085
-2012-01-06 20:25:52.849420, 10.849420
-2012-01-06 20:25:52.851427, 10.851427
-2012-01-06 20:25:53.954821, 11.954821
-2012-01-06 20:25:53.957109, 11.957109
-2012-01-06 20:25:53.959620, 12.959620
-2012-01-06 20:25:53.962573, 14.962573
-2012-01-06 20:25:53.964144, 11.964144
-2012-01-06 20:25:53.965350, 11.965350
-2012-01-06 20:25:53.966468, 11.966468
-2012-01-06 20:25:53.967509, 11.967509
-2012-01-06 20:25:53.968822, 12.968822
-2012-01-06 20:25:53.970103, 11.970103
-2012-01-06 20:25:53.971735, 10.971735
-2012-01-06 20:25:55.282562, 13.282562
-2012-01-06 20:25:55.285407, 13.285407
-2012-01-06 20:25:55.287489, 12.287489
-2012-01-06 20:25:55.289636, 13.289636
-...
-
-In the sample shown, the average latency is around 12 s.  Gnip documentations estimates
-that the stream enhancement adds about 10s of latency on average.  The 
-GnipStreamCollectorMetrics.py adds approximately 1.5s on average.
-
-An R utility is provided to create boxplots of latencies. (See ./R/plotLatency.r)
-
-Example 4: Files
------------------
-
-To store data in files, edit gnip.cfg to set the appropriate rollduration and set
-the filepath.  Don't forget to set the processtype to "files"
-
-...
-filepath=/Users/scotthendrickson/IdeaProjects/RuleProduction/data
-...
-
-...
-# store stream contents in files by year, month, day, hour, min
-processtype=files
-...
-
-Run script.
-
-Scott-Hendricksons-MacBook-Pro ~/IdeaProjects/RuleProduction/src> ./GnipStreamCollectorMetrics.py 
-(no output expected)
-
-When you look in the data path:
-
-Scott-Hendricksons-MacBook-Pro ~/IdeaProjects/RuleProduction/data> tree
-.
-└── 2012
-    └── 01
-        └── 06
-            └── 14
-                ├── Powertrack_201201061448497544.gz
-                ├── Powertrack_201201061448783761.gz
-                └── Powertrack_201201061449705606.gz
-...
-
-New directories will be created for every hour.  Here the rollduration is set to 
-60s so a new file is created every minute.
-
-
-If your input stream is JSON-formated, you can additionally parse it with Gnacs before writing to disk:
-
-...
-# store stream contents in files by year, month, day, hour, min
-processtype=files-gnacs
-...
-
-Your cfg file must have a [gnacs] block, with a mandatory parameter 'delim' and an optional parameter
-'options', which sets the Gnacs options.
-
-...
-[gnacs]
-options=gulist
-delim=|
-,,,
-
-When using 'files-gnacs', the output directory structure and files names are the same as for 'files'.
-
-
-Enjoy!
-
+ To run with Vagrant:
+ ```bash
+ vagrant init
+ vagrant ssh
+ cd /vagrant
+ sh ./start.sh
+ ```
