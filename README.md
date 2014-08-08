@@ -22,8 +22,8 @@ Some key notes about this design are as follows:
 ##Running
  To run with Linux:
  ```bash
- git clone git@github.com:twitterdev/Gnip-Stream-Collector-Metrics.git sample_python_connector
- cd sample_python_connector
+ git clone git@github.com:twitterdev/sample-python-connector.git sample-python-connector
+ cd sample-python-connector
  sh script/bootstrap.sh
  sh ./start.sh
  ```
