@@ -34,7 +34,6 @@ class SaveThread(object):
         while not self._stopped.is_set():
             chunk = self.next_message()
             if None != chunk:
-                print(str(write_lock))
                 with write_lock:
                     self.write(file_name, str(chunk))
 
@@ -61,7 +60,7 @@ class SaveThread(object):
         self._stopped.set()
 
     def stopped(self):
-        return not self._stopped.is_set() and self.queue.qsize() > 0
+        return self._stopped.is_set() and self.queue.qsize() == 0
 
     def running(self):
         self.run_process.is_alive() and not self._stopped.is_set()
