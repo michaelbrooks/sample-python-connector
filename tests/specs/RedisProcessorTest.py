@@ -3,7 +3,9 @@ import shutil
 import time
 import os
 import tests.TestHelper
-from src.processor.SaveThread import SaveThread
+from src.processor.RedisProcessor import RedisProcessor
+
+from src.utils.Envirionment import Envirionment
 
 
 class SaveThreadProcessorTest(object):
@@ -19,10 +21,9 @@ class SaveThreadProcessorTest(object):
 
     def test_processor(self):
         self.client.run()
-        processor = SaveThread(self.client.queue(), 8, self.test_helper.config.streamname, self.save_path)
+        processor = RedisProcessor(self.client.queue(), Envirionment())
         processor.run()
         print("Sleep 5 seconds to allow thread to process messages")
-
         run_until = time.time() + 15
         while time.time() < run_until:
             pass
