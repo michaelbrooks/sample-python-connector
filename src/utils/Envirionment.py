@@ -27,6 +27,11 @@ class Envirionment(object):
         self.rollduration = None
         self.processtype = None
         self.rollduration = None
+        self.redis_host = None
+        self.redis_port = None
+        self.mongo_host = None
+        self.mongo_port = None
+        self.mongo_db = None
         self.kwargs = None # Ew
 
         if 'GNIP_CONFIG_FILE' in os.environ:
@@ -77,3 +82,14 @@ class Envirionment(object):
         self.rollduration = int(self.config.get('proc', 'rollduration'))
         processtype = self.config.get('proc', 'processtype')
         self.logr.info("processing strategy %s" % processtype)
+
+        # Redis
+        if self.config.has_section('redis'):
+            self.redis_host = self.config.get('redis', 'host')
+            self.redis_port = self.config.get('redis', 'port')
+
+        # Mongo
+        if self.config.has_section('mongo'):
+            self.mongo_host = self.config.get('mongo', 'host')
+            self.mongo_port = self.config.get('mongo', 'port')
+            self.mongo_db = self.config.get('mongo', 'db')
