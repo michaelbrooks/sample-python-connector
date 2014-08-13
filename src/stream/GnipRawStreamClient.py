@@ -138,12 +138,12 @@ class GnipRawStreamClient(object):
     def roll_forward(self, ttime, tsize):
         # these trigger both processing and roll forward
         if ttime - self.time_roll_start >= self.rollDuration:
-            # self.logr.debug("Roll: duration (%d>=%d)" %
-            #                 (ttime - self.time_roll_start, self.rollDuration))
+            self.logr.debug("Roll: duration (%d>=%d)" %
+                            (ttime - self.time_roll_start, self.rollDuration))
             return True
         if tsize >= MAX_ROLL_SIZE:
-            # self.logr.debug("Roll: size (%d>=%d)" %
-            #                 (tsize, MAX_ROLL_SIZE))
+            self.logr.debug("Roll: size (%d>=%d)" %
+                            (tsize, MAX_ROLL_SIZE))
             return True
         return False
 
@@ -158,12 +158,14 @@ class GnipRawStreamClient(object):
         self.string_buffer.value = string
 
     def get_string_buffer(self):
-        while True:
-            try:
-                return self.string_buffer.value
-            except IOError, e:
-                print("IOError trying to get string buffer: ", e.traceback)
-                traceback.print_last(limit=20)
+        try:
+            ret_val = self.string_buffer.value
+        except IOError, e:
+            print("IOError trying to get string buffer: ", e.message)
+            traceback.print_last(limit=20)
+            ret_val = None
+
+        return ret_val
 
     def buffer_string(self, string):
         self.string_buffer.value = self.get_string_buffer() + string
@@ -180,7 +182,7 @@ class GnipRawStreamClient(object):
         print('module name:', __name__)
         if hasattr(os, 'getppid'):  # only available on Unix
             print('parent process:', os.getppid())
-        print('process id:',  os.getpid())
+            print('process id:',  os.getpid())
 
     def setup_string_buffer(self):
         while not self.string_buffer:
