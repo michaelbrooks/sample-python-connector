@@ -1,9 +1,6 @@
-__author__ = 'nisaacs'
+__author__ = 'Nick Isaacs'
 __all__ = [
-    "CountTwitterRules",
-    "Redis",
-    "RedisFreq",
+    "RedisProcessor",
+    "MongoProcessor",
     "SaveThread",
-    "SaveThreadGnacs",
-    "Latency"
 ]
