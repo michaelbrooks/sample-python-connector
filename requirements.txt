@@ -1,4 +1,4 @@
 gnacs
 redis
-MySQL-python
 spec
+pymongo
