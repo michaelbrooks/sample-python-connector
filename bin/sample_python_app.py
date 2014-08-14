@@ -5,10 +5,11 @@ import os
 import re
 import threading
 import configparser
-import src.processor
 
+from subprocess import call
 from src.stream.GnipJsonStreamClient import GnipJsonStreamClient
 from src.processor.RedisProcessor import RedisProcessor
+from src.processor.MongoProcessor import MongoProcessor
 from src.utils.Envirionment import Envirionment
 
 ######################
@@ -24,7 +25,6 @@ def get_stopped():
 def set_stopped(stopped):
     global _stopped
     _stopped = stopped
-
 ##########################
 # End geters and setters #
 ##########################
@@ -146,11 +146,11 @@ def configure():
     stream_url = get_non_null_input('Gnip url')
     gnip_streamname = get_non_null_input("Gnip stream name")
     gnip_log_level = get_user_input_with_prompt('log level (fatal, error, info, debug)')
-    redis_host = get_user_input_with_default('Redis hostname (default 0.0.0.0)', '0.0.0.0')
-    redis_port = get_user_input_with_default('Redis port no (default 6379', '6379')
-    mongo_host = get_user_input_with_default('Mongo hostname (default 0.0.0.0)', '0.0.0.0')
-    mongo_port = get_user_input_with_default('Mongo port no (default 27017)', '27017')
-
+    redis_host = get_user_input_with_default('Redis hostname (defaults to 0.0.0.0)', '0.0.0.0')
+    redis_port = get_user_input_with_default('Redis port no (defaults to 6379', '6379')
+    mongo_host = get_user_input_with_default('Mongo hostname (defaults to 0.0.0.0)', '0.0.0.0')
+    mongo_port = get_user_input_with_default('Mongo port no (defaults to 27017)', '27017')
+    mongo_db = get_user_input_with_default("Mongo database name (defaults to samplePythonConnector)", "samplePythonConnector")
 
     config.set('auth', 'username', gnip_username)
     config.set('auth', 'password', gnip_password)
@@ -160,8 +160,9 @@ def configure():
     config.set('sys', 'log_level', gnip_log_level)
     config.set('redis', 'host', redis_host)
     config.set('redis', 'port', redis_port)
-
-
+    config.set("mongo", 'host', mongo_host)
+    config.set("mongo", 'port', mongo_port)
+    config.set("mongo", "db", mongo_db)
 
     write_out_config(config)
     msg = string.Template("Configuration: $config").substitute(config=str(config._sections))
@@ -181,7 +182,7 @@ def write_out_config(config):
 
 def mongo_processor():
     stream = setup_client()
-    mongo_processor = src.processor.Mongo(stream)
+    mongo_processor = MongoProcessor(stream)
     run_processor(mongo_processor)
     print(
         """Mongo processor finished! Go check the
@@ -196,24 +197,23 @@ def print_stream_processor():
 
 
 def environment():
-    return src.utils.Envirionment()
+    return Envirionment()
 
 
 def start_redis():
-    exec "redis-server &" # HAAAAA
+    call(["redis-server", "&"]) # HAAAAA
 
 
 def start_mongo():
-    exec "mongod &" # Double HAAAAA
+    call(["mongod","&"]) # Double HAAAAA
 
 
 def redis_processor():
     start_redis()
-    stream = setup_client()
-    environment = environment()
-    redis_processor = RedisProcessor(stream.queue(), environment)
-    flush_redis(environment.redis_host, environment.redis_port)
-    run_processor(stream, redis_processor)
+    client = setup_client()
+    redis_processor = RedisProcessor(client.queue(), environment())
+    flush_redis(environment().redis_host, environment().redis_port)
+    run_processor(client, redis_processor)
 
     print("""
     Redis processor stopped. Head over to the redis-cli to see what we got!
@@ -228,27 +228,28 @@ def redis_processor():
 
 
 def run_processor(client, processor):
-    processing_thread = threading.Thread(target=_run_processor, args=(client, processor))
-    processing_thread.start()
-    print(
-        "#{type(processor).__name__} processor started. Press ENTER to stop\n\n"
-    )
+    try:
+        client.run()
+        processor.run()
 
-    while True:
-        if raw_input() == "\n":
-            break
+        print(
+            type(processor).__name__ + " processor started. Press ENTER to stop\n\n"
+        )
 
-    print 'Stopping'
-    stop_thread = threading.Thread(target=_stop_processor, args=(client, processor))
+        while True:
+            input = raw_input('> ')
+            if re.match(r'^\s?$', input):
+                break
 
-    while stop_thread.isAlive():
-        print '.'
-        time.sleep(1)
-
-
-def _run_processor(client, processor):
-    client.run()
-    processor.run()
+        print 'Stopping'
+        processor.stop()
+        client.stop()
+        while processor.running() or client.running():
+            pass
+    except Exception, e:
+        processor.stop()
+        client.stop()
+        raise e
 
 
 def _stop_processor(client, processor):
@@ -277,5 +278,6 @@ def flush_redis(host, port):
 #  End Helpers
 ##################
 
-print help_msg()
-repl()
+if __name__ == '__main__':
+    print help_msg()
+    repl()
