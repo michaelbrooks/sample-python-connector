@@ -22,6 +22,7 @@ def get_stopped():
 
 
 def set_stopped(stopped):
+    global _stopped
     _stopped = stopped
 
 ##########################
@@ -72,7 +73,7 @@ def print_help():
 
 def help_msg():
     return """
-    Welcome to the Ruby Thin Connector!
+    Welcome to the Python Thin Connector!
     This is a sample application that demonstrates best practices when
     consuming the Gnip set of streaming APIs
 
