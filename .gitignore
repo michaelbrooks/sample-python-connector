@@ -4,3 +4,4 @@ log/*
 *.gz
 *.swp
 .vagrant/*
+*.rdb
