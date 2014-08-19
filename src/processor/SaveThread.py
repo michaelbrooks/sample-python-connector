@@ -1,29 +1,23 @@
 #!/usr/bin/env python
 __author__ = 'scott hendrickson'
 
-import multiprocessing.queues
 import multiprocessing
 import time
 import gzip
 import os
 import logging
 
+from src.processor.BaseProcessor import BaseProcessor
 write_lock = multiprocessing.RLock()
 
 
-class SaveThread(object):
-    def __init__(self, _upstream, _pool_size, _feedname, _savepath):
-        self.queue = _upstream
-        self.pool_size = _pool_size
+class SaveThread(BaseProcessor):
+    def __init__(self, _upstream, _feedname, _savepath):
+        BaseProcessor.__init__(self, _upstream)
         self.logr = logging.getLogger("SaveThread")
         self.savepath = _savepath
         self.feedName = _feedname
         self.timeStart = time.gmtime(time.time())
-        self._stopped = multiprocessing.Event()
-        self.run_process = multiprocessing.Process(target=self._run)
-
-    def run(self):
-        self.run_process.start()
 
     def _run(self):
         self.logr.debug("started")
@@ -46,24 +40,6 @@ class SaveThread(object):
         except Exception, e:
             self.logr.error("write failed: %s" % e)
             raise e
-
-    def next_message(self):
-        ret_val = None
-        if self.queue.qsize() > 0:
-            try:
-                ret_val = self.queue.get(block=False)
-            except multiprocessing.queues.Empty:
-                self.logr.error("Queue was empty when trying to get next message")
-        return ret_val
-
-    def stop(self):
-        self._stopped.set()
-
-    def stopped(self):
-        return self._stopped.is_set() and self.queue.qsize() == 0
-
-    def running(self):
-        self.run_process.is_alive() and not self._stopped.is_set()
 
     def setup_out_file(self):
         file_path = "/".join([

@@ -1,0 +1,3 @@
+#!/bin/sh
+export PYTHONPATH=$PYTHONPATH:'./src'
+python ./bin/sample_python_app.py

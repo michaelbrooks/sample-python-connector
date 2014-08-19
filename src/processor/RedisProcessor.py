@@ -20,7 +20,7 @@ class RedisProcessor(object):
     def __init__(self, _upstream, _enviroinment):
         self.environment = _enviroinment
         self.queue = _upstream
-        self.logr = logging.getLogger("SaveThread")
+        self.logr = logging.getLogger("RedisProcessor")
         self._stopped = multiprocessing.Event()
         self.run_process = multiprocessing.Process(target=self._run)
         self._stopped = multiprocessing.Event()
@@ -59,7 +59,7 @@ class RedisProcessor(object):
                             rs.incr(tok)
                             rs.expire(tok, TIME_TO_LIVE)
                             rs.incr("TotalTokensCount")
-        print "Exiting Redis run loop"
+        self.logr.debug("Exiting Redis run loop")
 
     def client(self):
         return redis.StrictRedis(host=self.environment.redis_host, port=self.environment.redis_port)
@@ -68,7 +68,7 @@ class RedisProcessor(object):
         self._stopped.set()
 
     def stopped(self):
-        return self._stopped.is_set() and self.queue.qsize() == 0
+        return self._stopped.is_set()
 
     def running(self):
         self.run_process.is_alive() and not self.stopped()

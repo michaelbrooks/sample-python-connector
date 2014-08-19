@@ -4,12 +4,12 @@ import os
 import logging.handlers
 import logging
 import sys
+import pdb
 
 RELATIVE_CONFIG_PATH = "../../config/gnip.cfg"
 
 
 class Envirionment(object):
-
     def __init__(self):
         # Just for reference, not all that clean right now
         self.config_file_name = None
@@ -34,18 +34,12 @@ class Envirionment(object):
         self.mongo_db = None
         self.kwargs = None # Ew
 
-        if 'GNIP_CONFIG_FILE' in os.environ:
-            self.config_file_name = os.environ['GNIP_CONFIG_FILE']
-        else:
-            dir = os.path.dirname(__file__)
-            self.config_file_name = os.path.join(dir, RELATIVE_CONFIG_PATH)
-            if not os.path.exists(self.config_file_name):
-                print "No configuration file found."
-                sys.exit()
-        self.config = ConfigParser.ConfigParser()
-        self.config.read(self.config_file_name)
+        self.logr = logging.getLogger('Environment')
+        self.setup_config()
+        self.setup_logs()
+
+
         self.streamname = self.config.get('stream', 'streamname')
-        self.logfilepath = self.config.get('sys', 'logfilepath')
         self.logr = logging.getLogger('Enviroinment Logger')
         self.rotating_handler = logging.handlers.RotatingFileHandler(
             filename=self.logfilepath + "/%s-log" % self.streamname,
@@ -93,3 +87,28 @@ class Envirionment(object):
             self.mongo_host = self.config.get('mongo', 'host')
             self.mongo_port = self.config.get('mongo', 'port')
             self.mongo_db = self.config.get('mongo', 'db')
+
+    def setup_logs(self):
+        relative_log_path = self.config.get('sys', 'logfilepath').strip(r'^/') or "log"
+        _file = os.path.dirname(os.path.realpath(__file__))
+        self.logr.debug(_file)
+        root = os.path.join(_file, '../..')
+        self.logfilepath = os.path.join(root, relative_log_path)
+        try:
+            os.mkdir(self.logfilepath)
+        except OSError:
+            # File exists
+            pass
+        self.logr.debug(self.logfilepath)
+
+    def setup_config(self):
+        if 'GNIP_CONFIG_FILE' in os.environ:
+            self.config_file_name = os.environ['GNIP_CONFIG_FILE']
+        else:
+            dir = os.path.dirname(__file__)
+            self.config_file_name = os.path.join(dir, RELATIVE_CONFIG_PATH)
+            if not os.path.exists(self.config_file_name):
+                self.logr.debug("No configuration file found.")
+                sys.exit()
+        self.config = ConfigParser.ConfigParser()
+        self.config.read(self.config_file_name)

@@ -161,7 +161,7 @@ class GnipRawStreamClient(object):
         try:
             ret_val = self.string_buffer.value
         except IOError, e:
-            print("IOError trying to get string buffer: ", e.message)
+            self.logr.debug("IOError trying to get string buffer: ", e.message)
             traceback.print_last(limit=20)
             ret_val = None
 
@@ -192,5 +192,5 @@ class GnipRawStreamClient(object):
             except IOError, e:
                 error = "IOError creating string buffer: " + e.message
                 self.logr.error(error)
-                print(error)
+                self.logr.debug(error)
 

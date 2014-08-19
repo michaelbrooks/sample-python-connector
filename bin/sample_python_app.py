@@ -10,6 +10,7 @@ from subprocess import call
 from src.stream.GnipJsonStreamClient import GnipJsonStreamClient
 from src.processor.RedisProcessor import RedisProcessor
 from src.processor.MongoProcessor import MongoProcessor
+from src.processor.BaseProcessor import BaseProcessor
 from src.utils.Envirionment import Envirionment
 
 ######################
@@ -183,7 +184,7 @@ def write_out_config(config):
 def mongo_processor():
     stream = setup_client()
     mongo_processor = MongoProcessor(stream)
-    run_processor(mongo_processor)
+    run_processor(stream, mongo_processor)
     print(
         """Mongo processor finished! Go check the
     Mongo server 'tweets' collection to see what we brought in!"""
@@ -191,8 +192,9 @@ def mongo_processor():
 
 
 def print_stream_processor():
-    stream = setup_client()
-    run_processor(stream)
+    client = setup_client()
+    processor = BaseProcessor(client.queue(), environment())
+    run_processor(client, processor)
     print "\n\n\nWhew! That was a lot of JSON!"
 
 
@@ -233,7 +235,7 @@ def run_processor(client, processor):
         processor.run()
 
         print(
-            type(processor).__name__ + " processor started. Press ENTER to stop\n\n"
+            type(processor).__name__ + " processor started. Press ENTER to stop\n\n" + "Waiting for stream to start..."
         )
 
         while True:

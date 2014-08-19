@@ -45,6 +45,6 @@ client = GnipJsonStreamClient(
     )
 
 client.run()
-print("Made it here")
+self.logr.debug("Made it here")
 for processor in processors_for_queue(queue):
     processor.run()

@@ -17,22 +17,23 @@ class GnipJsonStreamClient(object):
         self.logr = logging.getLogger("GnipJsonStreamClient")
         self._stop = multiprocessing.Event()
         self.run_thread = multiprocessing.Process(target=self.parse_string_buffer)
+        self._started = False
+
+    def started(self):
+        return self._started
 
     def run(self):
         self.gnip_raw_sream_client.run()
         self.run_thread.start()
-        print("Started application")
-        # Block for stuff to appear
-        while 0 >= self.producer_queue.qsize():
-            pass
+        self.logr.debug("Started application")
 
     def running(self):
-        return (not self.stopped()) and 0 != self.producer_queue.qsize() or self.gnip_raw_sream_client.running()
+        return not self.stopped()
 
     def stop(self):
         self._stop.set()
         self.gnip_raw_sream_client.stop()
-        print("Cleanly stopped raw streaming client")
+        self.logr.debug("Cleanly stopped raw streaming client")
 
     def stopped(self):
         return self._stop.is_set()
@@ -41,7 +42,7 @@ class GnipJsonStreamClient(object):
         return self.producer_queue
 
     def parse_string_buffer(self):
-        print("Starting to parse buffer")
+        self.logr.debug("Starting to parse buffer")
         while not self.stopped():
             if not isinstance(self.gnip_raw_sream_client.get_string_buffer(), basestring):
                 continue
@@ -52,5 +53,10 @@ class GnipJsonStreamClient(object):
                         continue
                     the_hash = json.loads(chunk)
                     self.producer_queue.put(the_hash)
+                    if not self._started:
+                        self._started = True
+            except ValueError:
+                self.logr.error("There was a ValueError in the chunk: " + chunk)
             except Exception, e:
-                self.logr.debug("There was an error: " + e.message)
+                self.logr.error("There was an error: " + e.message)
+                raise e

@@ -3,18 +3,15 @@ import multiprocessing
 import logging
 from multiprocessing import queues
 from pymongo import MongoClient
+from src.processor.BaseProcessor import BaseProcessor
 
 MONGO_COLLECTION = "tweets"
 
 
-class MongoProcessor(object):
+class MongoProcessor(BaseProcessor):
     def __init__(self, _upstream, _enviroinment):
-        self.environment = _enviroinment
-        self.queue = _upstream
-        self.logr = logging.getLogger("SaveThread")
-        self._stopped = multiprocessing.Event()
-        self.run_process = multiprocessing.Process(target=self._run)
-        self._stopped = multiprocessing.Event()
+        BaseProcessor.__init__(self, _upstream, _enviroinment)
+        self.logr = logging.getLogger("MongoProcessor")
         self._collection = None
 
     def run(self):

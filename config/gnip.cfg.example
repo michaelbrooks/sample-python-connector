@@ -12,12 +12,6 @@ streamname=Powertrack
 filepath=../data
 compressed=True
 
-[db]
-sql_instance=<mysqldb host string"
-sql_user_name=<un>
-sql_password=<pwd>
-sql_db=MetricsDB
-
 [gnacs]
 options=gulist
 delim=|
