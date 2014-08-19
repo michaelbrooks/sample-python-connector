@@ -14,7 +14,6 @@ write_lock = multiprocessing.RLock()
 class SaveThread(BaseProcessor):
     def __init__(self, _upstream, _feedname, _savepath):
         BaseProcessor.__init__(self, _upstream)
-        self.logr = logging.getLogger("SaveThread")
         self.savepath = _savepath
         self.feedName = _feedname
         self.timeStart = time.gmtime(time.time())

@@ -8,7 +8,8 @@ class BaseProcessor(object):
         self.queue = upstream
         self._stopped = multiprocessing.Event()
         self.run_process = multiprocessing.Process(target=self._run)
-        self.logr = logging.getLogger("BaseProcessor")
+        self.logr = logging.getLogger(__name__)
+        self.logr.addHandler(environment.rotating_handler)
 
     def run(self):
         self.run_process.start()

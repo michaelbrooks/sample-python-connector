@@ -2,9 +2,8 @@ __author__ = 'scott hendrickson'
 
 import re
 import redis
-import multiprocessing
-import multiprocessing.queues
-import logging
+
+from src.processor.BaseProcessor import BaseProcessor
 
 engstoplist = ["un", "da", "se", "ap", "el", "morreu", "en", "la", "que", "ll", "don", "ve", "de", "gt", "lt", "com", "ly", "co", "re", "rt", "http","a","able","about","across","after","all","almost","also","am","among","an","and","any","are","as","at","be","because","been","but","by","can","cannot","could","dear","did","do","does","either","else","ever","every","for","from","get","got","had","has","have","he","her","hers","him","his","how","however","i","if","in","into","is","it","its","just","least","let","like","likely","may","me","might","most","must","my","neither","no","nor","not","of","off","often","on","only","or","other","our","own","rather","said","say","says","she","should","since","so","some","than","that","the","their","them","then","there","these","they","this","tis","to","too","twas","us","wants","was","we","were","what","when","where","which","while","who","whom","why","will","with","would","yet","you","your"]
 
@@ -16,14 +15,9 @@ stoplist = engstoplist + spanstoplist
 TIME_TO_LIVE = 90
 
 
-class RedisProcessor(object):
-    def __init__(self, _upstream, _enviroinment):
-        self.environment = _enviroinment
-        self.queue = _upstream
-        self.logr = logging.getLogger("RedisProcessor")
-        self._stopped = multiprocessing.Event()
-        self.run_process = multiprocessing.Process(target=self._run)
-        self._stopped = multiprocessing.Event()
+class RedisProcessor(BaseProcessor):
+    def __init__(self, _upstream, _environment):
+        BaseProcessor.__init__(self, _upstream, _environment)
 
     def run(self):
         self.run_process.start()
@@ -63,21 +57,3 @@ class RedisProcessor(object):
 
     def client(self):
         return redis.StrictRedis(host=self.environment.redis_host, port=self.environment.redis_port)
-
-    def stop(self):
-        self._stopped.set()
-
-    def stopped(self):
-        return self._stopped.is_set()
-
-    def running(self):
-        self.run_process.is_alive() and not self.stopped()
-
-    def next_message(self):
-        ret_val = None
-        if self.queue.qsize() > 0:
-            try:
-                ret_val = self.queue.get(block=False)
-            except multiprocessing.queues.Empty:
-                self.logr.error("Queue was empty when trying to get next message")
-        return ret_val

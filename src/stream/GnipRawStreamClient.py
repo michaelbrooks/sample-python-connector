@@ -10,9 +10,10 @@ import socket
 import logging
 import os
 import traceback
+
+from src.utils.Envirionment import Envirionment
 from multiprocessing import Event, Process, Manager
 from ctypes import c_char_p
-import threading
 
 MAX_QUEUE_SIZE = 5000
 CHUNK_SIZE = 2 ** 17  # decrease for v. low volume streams, > max record size
@@ -30,6 +31,8 @@ class GnipRawStreamClient(object):
     def __init__(self, _streamURL, _streamName, _userName, _password,
                  _filePath, _rollDuration, compressed=True):
         self.logr = logging.getLogger("GnipRawStreamClient")
+        self.environment = Envirionment()
+        self.logr.addHandler(self.environment.rotating_handler)
         self.logr.info('GnipStreamClient started')
         self.compressed = compressed
         self.logr.info('Stream compressed: %s' % str(self.compressed))
@@ -56,7 +59,7 @@ class GnipRawStreamClient(object):
         return not self.stopped() and not ("" == self.get_string_buffer()) and not self.run_process.is_alive()
 
     def _run(self, delay, delay_reset):
-        while not self.stopped():
+        while not self._stop.is_set():
             try:
                 self.get_stream()
                 self.logr.error("Forced disconnect")
@@ -88,11 +91,7 @@ class GnipRawStreamClient(object):
         self.run_process.start()
 
     def stop(self):
-        lock = threading.RLock()
-        lock.acquire()
-        with lock:
-            self._stop.set()
-        self.run_process.join()
+        self._stop.set()
 
     def get_stream(self):
         self.logr.info("Connecting")
@@ -104,7 +103,7 @@ class GnipRawStreamClient(object):
             decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
             self.buffer_string("")
             roll_size = 0
-            while not self.stopped():
+            while not self._stop.is_set():
                 if self.compressed:
                     chunk = decompressor.decompress(response.read(CHUNK_SIZE))
                 else:
@@ -121,9 +120,9 @@ class GnipRawStreamClient(object):
                     [records, tmp_buffer] = self.get_string_buffer().rsplit(NEW_LINE, 1)
                     self.set_string_buffer(tmp_buffer)
                     timeSpan = test_time - self.time_roll_start
-                    # self.logr.debug("recsize=%d, %s, %s, ts=%d, dur=%d" %
-                    #                 (len(records), self.streamName, self.filePath,
-                    #                  test_time, timeSpan))
+                    self.logr.debug("recsize=%d, %s, %s, ts=%d, dur=%d" %
+                                    (len(records), self.streamName, self.filePath,
+                                     test_time, timeSpan))
                     if self.roll_forward(test_time, test_roll_size):
                         self.time_roll_start = test_time
                         roll_size = 0
@@ -171,11 +170,7 @@ class GnipRawStreamClient(object):
         self.string_buffer.value = self.get_string_buffer() + string
 
     def stopped(self):
-        lock = threading.RLock()
-        lock.acquire()
-        with lock:
-            status = self._stop.is_set()
-            return status
+        self._stop.is_set()
 
     def info(self, title):
         print(title)

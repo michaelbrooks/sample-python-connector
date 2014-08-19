@@ -17,6 +17,7 @@ from src.utils.Envirionment import Envirionment
 # Geters and setters #
 ######################
 _stopped = False
+_accept_input = True
 
 
 def get_stopped():
@@ -26,6 +27,15 @@ def get_stopped():
 def set_stopped(stopped):
     global _stopped
     _stopped = stopped
+
+
+def set_accept_input(bool):
+    global _accept_input
+    _accept_input = bool
+
+def accepting_input():
+    global _accept_input
+    return _accept_input
 ##########################
 # End geters and setters #
 ##########################
@@ -37,9 +47,10 @@ def set_stopped(stopped):
 
 def repl():
     while not get_stopped():
+        if not accepting_input():
+            continue
         cmd = raw_input('> ')
         handle_command(cmd)
-        cmd
 
 
 def handle_command(cmd):
@@ -64,9 +75,11 @@ def commands():
         "help": print_help
     }
 
+
 def handle_unrecognized_command(cmd):
     msg = string.Template("Unrecognized command \"$cmd\"").substitute(cmd=cmd)
     print(msg)
+
 
 def print_help():
     print help_msg()
@@ -81,8 +94,9 @@ def help_msg():
     Commands:
 
     configure # Run the interactive configuration
-    redis # Run the redis
     stdout # Run the stdout processor
+    redis # Run the Redis processor
+    mongo # Run the MongoDB processor
   """
 
 
@@ -182,9 +196,9 @@ def write_out_config(config):
 
 
 def mongo_processor():
-    stream = setup_client()
-    mongo_processor = MongoProcessor(stream)
-    run_processor(stream, mongo_processor)
+    client = setup_client()
+    mongo_processor = MongoProcessor(client.queue(), environment())
+    run_processor(client, mongo_processor)
     print(
         """Mongo processor finished! Go check the
     Mongo server 'tweets' collection to see what we brought in!"""
@@ -202,16 +216,7 @@ def environment():
     return Envirionment()
 
 
-def start_redis():
-    call(["redis-server", "&"]) # HAAAAA
-
-
-def start_mongo():
-    call(["mongod","&"]) # Double HAAAAA
-
-
 def redis_processor():
-    start_redis()
     client = setup_client()
     redis_processor = RedisProcessor(client.queue(), environment())
     flush_redis(environment().redis_host, environment().redis_port)
@@ -229,6 +234,10 @@ def redis_processor():
     )
 
 
+def empty_line_regex():
+    return r'^\s?$'
+
+
 def run_processor(client, processor):
     try:
         client.run()
@@ -240,7 +249,8 @@ def run_processor(client, processor):
 
         while True:
             input = raw_input('> ')
-            if re.match(r'^\s?$', input):
+            if re.match(empty_line_regex(), input):
+                set_accept_input(False)
                 break
 
         print 'Stopping'
@@ -252,6 +262,8 @@ def run_processor(client, processor):
         processor.stop()
         client.stop()
         raise e
+    finally:
+        set_accept_input(True)
 
 
 def _stop_processor(client, processor):

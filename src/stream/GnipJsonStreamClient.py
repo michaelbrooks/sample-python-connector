@@ -5,6 +5,8 @@ __author__ = "Nick Isaacs"
 import json
 import logging
 import multiprocessing
+
+from src.utils.Envirionment import Envirionment
 from src.stream.GnipRawStreamClient import GnipRawStreamClient
 
 
@@ -13,8 +15,10 @@ class GnipJsonStreamClient(object):
                  _filePath, _rollDuration, compressed=True):
         self.gnip_raw_sream_client = GnipRawStreamClient(_streamURL, _streamName, _userName, _password,
                                                          _filePath, _rollDuration, compressed)
+        self.environment = Envirionment()
         self.producer_queue = multiprocessing.Queue()
         self.logr = logging.getLogger("GnipJsonStreamClient")
+        self.logr.addHandler(self.environment.rotating_handler)
         self._stop = multiprocessing.Event()
         self.run_thread = multiprocessing.Process(target=self.parse_string_buffer)
         self._started = False

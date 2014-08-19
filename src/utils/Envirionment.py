@@ -4,7 +4,6 @@ import os
 import logging.handlers
 import logging
 import sys
-import pdb
 
 RELATIVE_CONFIG_PATH = "../../config/gnip.cfg"
 

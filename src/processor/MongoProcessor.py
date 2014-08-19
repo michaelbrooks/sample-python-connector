@@ -11,7 +11,6 @@ MONGO_COLLECTION = "tweets"
 class MongoProcessor(BaseProcessor):
     def __init__(self, _upstream, _enviroinment):
         BaseProcessor.__init__(self, _upstream, _enviroinment)
-        self.logr = logging.getLogger("MongoProcessor")
         self._collection = None
 
     def run(self):
@@ -29,6 +28,7 @@ class MongoProcessor(BaseProcessor):
         self.logr.debug("Exiting Mongo run loop")
 
     def put_in_mongo(self, obj):
+        self.logr.debug("Putting in Mongo: " + str(obj))
         self.collection().insert(obj)
 
     def client(self):
