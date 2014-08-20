@@ -15,6 +15,4 @@ rm pip_install.py
 
 sudo apt-get install -y zsh curl
 chsh -s $(which zsh)
-rm -rf ~/.oh-my-zsh
-curl -L http://install.ohmyz.sh > ~/install_zsh.sh
-zsh -c "echo \"vagrant\" | sh ~/install_zsh.sh"
+sudo rm -rf ~/.oh-my-zsh && sudo curl -L http://install.ohmyz.sh > ~/install_zsh.sh && sudo zsh ~/install_zsh.sh
