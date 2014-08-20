@@ -1,3 +1,6 @@
+#TODO
+- [ ] reap all hanging processes on exit
+
 #Gnip Python Sample Connector
 This is a sample app which connects to the Gnip set of streaming APIs in Python. The application is broken down into three basic elements:
  - A ```GnipRawStreamClient``` which connects to the HTTP endpoint and buffers the streaming JSON
@@ -35,3 +38,14 @@ Some key notes about this design are as follows:
  cd /vagrant
  sh ./start.sh
  ```
+
+##Whats Next?
+Now that you can access the data, where do you go from here? The world is your
+oyster, and we can't wait to see what you do next. There are a few things to keep
+in mind however. Getting the data in the door is just the first step, proper storage
+of the data for purposes of keeping in compliance is important. The easiest
+way to achieve this is to make sure to keep record of both the individual Tweet ids
+and user ids, to facilitate removing tweets when necessary.
+
+##LICENCE
+Refer to the LICENCE file
