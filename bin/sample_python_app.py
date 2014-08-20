@@ -1,12 +1,9 @@
 import string
 import redis
-import time
 import os
 import re
-import threading
 import configparser
 
-from subprocess import call
 from src.stream.GnipJsonStreamClient import GnipJsonStreamClient
 from src.processor.RedisProcessor import RedisProcessor
 from src.processor.MongoProcessor import MongoProcessor
@@ -36,6 +33,8 @@ def set_accept_input(bool):
 def accepting_input():
     global _accept_input
     return _accept_input
+
+
 ##########################
 # End geters and setters #
 ##########################
@@ -63,6 +62,11 @@ def handle_command(cmd):
             return
         if func:
             func()
+
+
+def ensure_configuration_for_cmd(cmd):
+    if needs_configuration():
+        print(cmd + " command needs configuration. Please run 'configure'")
 
 
 def commands():
@@ -288,6 +292,9 @@ def flush_redis(host, port):
     client = redis.StrictRedis(host=host, port=port)
     client.flushall()
 
+
+def needs_configuration():
+    return not os.path.isfile(config_file_path())
 ##################
 #  End Helpers
 ##################
