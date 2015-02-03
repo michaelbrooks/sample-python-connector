@@ -194,7 +194,7 @@ def config_file_path():
 
 
 def write_out_config(config):
-    with open(config_file_path(), 'r+') as config_file:
+    with open(config_file_path(), 'w+') as config_file:
         config_file.truncate()
         config.write(config_file)
 
