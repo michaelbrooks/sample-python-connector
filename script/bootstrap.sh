@@ -9,10 +9,11 @@ echo 'deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen' | 
 sudo apt-get update
 sudo apt-get install mongodb-org
 
+sudo apt-get install -y curl
 sudo curl https://bootstrap.pypa.io/get-pip.py > pip_install.py
 sudo python pip_install.py
 rm pip_install.py
 
-sudo apt-get install -y zsh curl
+sudo apt-get install -y zsh
 chsh -s $(which zsh)
 sudo rm -rf ~/.oh-my-zsh && sudo curl -L http://install.ohmyz.sh > ~/install_zsh.sh && sudo zsh ~/install_zsh.sh
