@@ -25,7 +25,8 @@ Some key notes about this design are as follows:
  git clone git@github.com:twitterdev/sample-python-connector.git sample-python-connector
  cd sample-python-connector
  sh script/bootstrap.sh
- sh ./start.sh
+ pip install -r requirements.txt
+ sh ./start
  ```
 
  To run with Vagrant:
@@ -33,7 +34,8 @@ Some key notes about this design are as follows:
  vagrant init
  vagrant ssh
  cd /vagrant
- sh ./start.sh
+ pip install -r requirements.txt
+ sh ./start
  ```
 
 ##Whats Next?
