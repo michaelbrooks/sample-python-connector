@@ -3,7 +3,7 @@ username=<un>
 password=<pwd>
 
 [sys]
-logfilepath=../log
+logfilepath=log
 
 [stream]
 # Twitter Powertrack stream (Gnip 2.5)
